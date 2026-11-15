@@ -1,0 +1,15 @@
+# RUL Predictor — Python dependencies
+streamlit>=1.40
+numpy
+pandas
+joblib
+scikit-learn
+altair
+# model formats used by the bundled models and by the optional upload
+xgboost
+safetensors
+torch
+# Windows only: ships the MSVC runtime DLLs that torch needs when the Microsoft
+# Visual C++ Redistributable is not installed system-wide. app.py registers this
+# per-user copy before importing torch.
+msvc-runtime; sys_platform == "win32"

@@ -1,0 +1,1912 @@
+/* ------------------------------------------------------------------
+   RUL Predictor — visual layer for the Streamlit app.
+
+   The app ships its own chrome (top bar, hero, cards) and this file
+   removes Streamlit's default skin around it: no header band, no
+   deploy button, no sidebar, no rainbow accents.
+
+   Colour tokens have light fallbacks here. components.py writes the
+   active palette to :root for portalled widgets, and a light-dark() pair
+   onto .stApp so the page follows Streamlit's appearance switch live.
+   ------------------------------------------------------------------ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --bg: #f4f4f3;
+  --surface: #ffffff;
+  --surface-2: #fbfbfa;
+  --surface-3: #ededec;
+  --ink: #0a0a0a;
+  --ink-2: #28282b;
+  --muted: #6d6d74;
+  --faint: #9a9aa1;
+  --line: #e3e3e1;
+  --line-strong: #cfcfcd;
+  --accent: #1d4ed8;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b42318;
+  --on-ink: #ffffff;
+  --invert-bg: #0a0a0a;
+  --invert-fg: #ffffff;
+  --shadow-color: rgba(10, 10, 10, 0.08);
+
+  --radius-xl: 18px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 9px;
+
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 28px 60px -38px var(--shadow-color);
+
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
+    "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono",
+    Consolas, monospace;
+
+  --page: 1240px;
+  --rhythm: 1.75rem;
+  color-scheme: light;
+}
+
+/* ------------------------------ app shell ------------------------------ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  background: var(--bg);
+  min-height: 100%;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.stApp {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+[data-testid="stAppViewContainer"] {
+  background: var(--bg);
+}
+
+/* The header only exists to host the ⋮ menu; make it invisible. */
+[data-testid="stHeader"] {
+  background: transparent;
+  height: 2.75rem;
+}
+
+[data-testid="stToolbar"] {
+  top: 0.55rem;
+  right: 1.1rem;
+}
+
+[data-testid="stAppDeployButton"],
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"] {
+  display: none !important;
+}
+
+/* Keep the appearance toggle reachable, but quiet. */
+[data-testid="stMainMenu"] {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+[data-testid="stMainMenu"]:hover,
+[data-testid="stMainMenu"]:focus-within {
+  opacity: 1;
+}
+
+[data-testid="stMainMenuButton"] {
+  border-radius: 8px;
+  color: var(--muted) !important;
+}
+
+[data-testid="stMainMenuButton"]:hover {
+  background: var(--surface-3);
+  color: var(--ink) !important;
+}
+
+/* Hide Streamlit's own footer, not the page footer drawn below. */
+footer:not(.footer) {
+  visibility: hidden;
+}
+
+[data-testid="stMainBlockContainer"] {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 18px 48px 112px;
+}
+
+/* Streamlit stacks every element in a 1rem flex gap. Give the page itself a
+   little more air, while the individual cards keep their own rhythm. */
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"],
+[data-testid="stMainBlockContainer"] > div > [data-testid="stVerticalBlock"] {
+  gap: var(--rhythm);
+}
+
+/* Header/section links scroll clear of the sticky app header. */
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Streamlit gives markdown headings their own padding; our HTML does not want it. */
+[data-testid="stMarkdown"] :is(h1, h2, h3, h4, h5, h6) {
+  padding: 0;
+}
+
+/* Streamlit pulls every markdown block up by 1rem, which makes our full-bleed
+   cards overlap. The wrapper added in components.py opts out of that margin. */
+[data-testid="stMarkdownContainer"]:has(> .rul-block) {
+  margin-bottom: 0 !important;
+}
+
+.rul-block > :first-child {
+  margin-top: 0;
+}
+
+/* Kill the default page padding Streamlit adds above the first block. */
+[data-testid="stMain"] > div:first-child,
+[data-testid="stMainBlockContainer"] > div:first-child {
+  padding-top: 0;
+}
+
+/* ------------------------------- top bar ------------------------------- */
+
+.topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  height: 76px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  text-decoration: none !important;
+}
+
+/* st.markdown colours every <a>; the brand stays ink in both themes. */
+.rul-block a.brand,
+.rul-block a.brand:visited,
+.rul-block a.brand:hover {
+  color: var(--ink);
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.brand-mark svg {
+  width: 17px;
+  height: 17px;
+}
+
+.brand-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-name em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 5px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* -------------------------------- hero --------------------------------- */
+
+.hero {
+  padding: 72px 0 56px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Once a model is loaded the page tightens up and keeps the workspace in view. */
+.hero.is-compact {
+  padding: 28px 0 32px;
+}
+
+.hero.is-compact h1 {
+  margin-top: 12px;
+  font-size: clamp(36px, 3.8vw, 50px);
+  letter-spacing: -0.045em;
+}
+
+.hero.is-compact .lede {
+  display: none;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 15%, transparent);
+}
+
+.hero h1 {
+  margin: 20px 0 0;
+  font-size: clamp(50px, 7.2vw, 88px);
+  font-weight: 600;
+  line-height: 0.94;
+  letter-spacing: -0.052em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.hero .lede {
+  margin: 24px 0 0;
+  max-width: 660px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+/* ------------------------------ structure ------------------------------ */
+
+.field-head {
+  margin: 0 0 15px;
+}
+
+.field-head h3,
+.panel-head h3,
+.card-head h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+
+.field-head p,
+.panel-head p {
+  margin: 7px 0 0;
+  max-width: 58ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.field-meta {
+  margin: 9px 0 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 36px 0 10px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.section-head p {
+  margin: 0 0 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* -------------------------------- cards -------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  padding: 30px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.card-lede {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 15%, transparent);
+}
+
+.guide-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-item {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 14px;
+  padding: 19px 0;
+  border-top: 1px solid var(--line);
+}
+
+.guide-item:first-child {
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.guide-num {
+  padding-top: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.guide-item h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+.guide-item p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.guide-item p + p {
+  margin-top: 7px;
+}
+
+.k {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.card-note {
+  margin: 20px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--faint);
+  text-wrap: pretty;
+}
+
+/* model card ------------------------------------------------------------ */
+
+.model-title {
+  margin: 18px 0 4px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.model-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.spec {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 24px 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--line);
+}
+
+.spec > div {
+  padding: 15px 16px;
+  background: var(--surface);
+}
+
+.spec dt {
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.spec dd {
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+/* details/summary used for the file guide once a model is loaded -------- */
+
+.disclosure {
+  margin: 22px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.disclosure summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure summary::before {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.disclosure[open] summary::before {
+  content: "−";
+}
+
+.disclosure .guide-item:first-child {
+  margin-top: 12px;
+}
+
+/* ------------------------- result / stats blocks ----------------------- */
+
+.result {
+  position: relative;
+  overflow: hidden;
+  padding: 44px 44px 38px;
+  border: 1px solid color-mix(in srgb, var(--invert-fg) 12%, transparent);
+  border-radius: var(--radius-xl);
+  background: var(--invert-bg);
+  color: var(--invert-fg);
+}
+
+.result .eyebrow {
+  color: color-mix(in srgb, var(--invert-fg) 58%, transparent);
+}
+
+.result .eyebrow .dot {
+  background: #4ade80;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.16);
+}
+
+.result.is-low .eyebrow .dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.16);
+}
+
+.result-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.result-value {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 20px;
+  font-size: clamp(56px, 8vw, 94px);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.058em;
+}
+
+.result-value span {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.55;
+}
+
+.result-aside {
+  display: flex;
+  gap: 40px;
+  padding-bottom: 8px;
+}
+
+.result-aside div span {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.result-aside div b {
+  display: block;
+  margin-top: 5px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.meter {
+  position: relative;
+  height: 4px;
+  margin-top: 38px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--invert-fg) 16%, transparent);
+  overflow: hidden;
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--invert-fg);
+}
+
+.result-note {
+  margin: 16px 0 0;
+  max-width: 70ch;
+  font-size: 12px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--invert-fg) 58%, transparent);
+  text-wrap: pretty;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.stat {
+  padding: 20px 24px;
+  border-left: 1px solid var(--line);
+}
+
+.stat:first-child {
+  border-left: 0;
+}
+
+.stat span {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.stat b {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+/* ------------------------------- panels -------------------------------- */
+
+.panel {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-head {
+  margin-bottom: 24px;
+}
+
+.panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.panel-foot p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* ------------------------------- steps --------------------------------- */
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.step {
+  padding: 32px;
+  background: var(--surface);
+}
+
+.step span {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.step h4 {
+  margin: 18px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.step p {
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+/* ------------------------------- footer -------------------------------- */
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 96px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.footer p {
+  margin: 0;
+  max-width: 640px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.footer span {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* --------------------------- widget reskin ----------------------------- */
+
+/* Labels that stay visible are small, quiet captions. */
+[data-testid="stWidgetLabel"] p {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+
+/* Selectbox ------------------------------------------------------------- */
+
+[data-testid="stSelectbox"] .react-aria-ComboBox > div[role="group"] {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  padding: 0 8px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+[data-testid="stSelectbox"] .react-aria-ComboBox > div[role="group"]:hover {
+  border-color: var(--line-strong);
+}
+
+[data-testid="stSelectbox"] .react-aria-ComboBox > div[role="group"]:focus-within {
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+[data-testid="stSelectbox"] input[role="combobox"] {
+  padding-left: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+[data-testid="stSelectbox"] button[aria-label="Open"] {
+  color: var(--muted);
+}
+
+/* Dropdown lists are rendered in a portal at the end of <body>, outside
+   .stApp. Leave their colours and row metrics to Streamlit's own theme so
+   they follow the appearance switch correctly. */
+
+/* File uploader --------------------------------------------------------- */
+
+[data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+[data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"]:hover {
+  border-color: var(--ink-2);
+  background: var(--surface);
+}
+
+[data-testid="stFileUploaderDropzone"] span[data-testid="stFileUploaderDropzoneInstructions"] {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+[data-testid="stFileUploaderDropzone"] small,
+[data-testid="stFileUploaderDropzoneInstructions"] {
+  display: none;
+}
+
+/* A quiet hint next to the Upload pill instead of Streamlit's file limit line. */
+[data-testid="stFileUploaderDropzone"]::after {
+  content: "or drop files here";
+  color: var(--faint);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+}
+
+/* The "Upload" button becomes the pill from the mock-up. */
+[data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"] {
+  min-height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+[data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"]:hover {
+  background: color-mix(in srgb, var(--ink) 84%, var(--surface));
+  color: var(--on-ink);
+}
+
+[data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"] p {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* Once files are in the box, the dashed well collapses to chips. */
+[data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  align-items: center;
+}
+
+[data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"])::after {
+  display: none;
+}
+
+[data-testid="stFileChips"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+[data-testid="stFileChips"] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+[data-testid="stFileChip"] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+[data-testid="stFileChip"] svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+[data-testid="stFileChipName"] {
+  flex: 1 1 auto;
+  max-width: none;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+[data-testid="stFileChipName"] + div {
+  color: var(--faint);
+  font-size: 10.5px;
+}
+
+[data-testid="stFileChipDeleteBtn"] button {
+  color: var(--faint);
+}
+
+[data-testid="stFileChipDeleteBtn"] button:hover {
+  color: var(--ink);
+}
+
+/* The add-files control next to the chips. */
+[data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-borderlessIcon"] {
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+}
+
+[data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-borderlessIcon"]:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+/* Uploaded file rows. */
+[data-testid="stFileUploaderFile"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+[data-testid="stFileUploaderFile"] div,
+[data-testid="stFileUploaderFileName"] {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+/* Number input ---------------------------------------------------------- */
+
+[data-testid="stNumberInputContainer"] {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+[data-testid="stNumberInputContainer"]:focus-within {
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+[data-testid="stNumberInputField"] {
+  padding: 0 10px;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+[data-testid="stNumberInputStepDown"],
+[data-testid="stNumberInputStepUp"] {
+  color: var(--muted);
+}
+
+[data-testid="stNumberInputStepDown"]:hover,
+[data-testid="stNumberInputStepUp"]:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+
+/* Text input ------------------------------------------------------------ */
+
+[data-testid="stTextInputRootElement"] {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+[data-testid="stTextInputRootElement"]:focus-within {
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* Buttons --------------------------------------------------------------- */
+
+.stButton button,
+.stDownloadButton button,
+.stFormSubmitButton button {
+  min-height: 44px;
+  padding: 0 24px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: none;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.stButton button:hover,
+.stDownloadButton button:hover,
+.stFormSubmitButton button:hover {
+  border-color: var(--ink-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.stButton button:active,
+.stDownloadButton button:active,
+.stFormSubmitButton button:active {
+  transform: translateY(1px);
+}
+
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-primaryFormSubmit"] {
+  border: 0 !important;
+  background: var(--ink) !important;
+  color: var(--on-ink) !important;
+}
+
+[data-testid="stBaseButton-primary"] p,
+[data-testid="stBaseButton-primaryFormSubmit"] p {
+  color: inherit !important;
+  font-weight: 600;
+}
+
+[data-testid="stBaseButton-primary"]:hover,
+[data-testid="stBaseButton-primaryFormSubmit"]:hover {
+  background: color-mix(in srgb, var(--ink) 84%, var(--surface)) !important;
+}
+
+/* Segmented control ----------------------------------------------------- */
+
+[data-testid="stButtonGroup"] div[role="radiogroup"] {
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+[data-testid="stButtonGroup"] button[role="radio"] {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  box-shadow: none;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+[data-testid="stButtonGroup"] button[role="radio"] p {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+[data-testid="stButtonGroup"] button[role="radio"]:hover {
+  color: var(--ink);
+}
+
+[data-testid="stButtonGroup"] button[role="radio"][aria-checked="true"],
+[data-testid="stButtonGroup"] button[role="radio"][data-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line);
+}
+
+/* Data editor ----------------------------------------------------------- */
+
+[data-testid="stDataFrame"] {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+[data-testid="stDataFrame"] [data-testid="stElementToolbar"] {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+[data-testid="stDataFrame"]:hover [data-testid="stElementToolbar"] {
+  opacity: 1;
+}
+
+/* Expander -------------------------------------------------------------- */
+
+[data-testid="stExpander"] {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* The model-notes disclosure runs inline instead of as a card. */
+.st-key-inputs-expander [data-testid="stExpander"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.st-key-inputs-expander [data-testid="stExpander"] summary {
+  padding: 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.st-key-inputs-expander [data-testid="stExpander"] summary:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+[data-testid="stExpander"] details {
+  border: 0;
+}
+
+[data-testid="stExpander"] summary {
+  padding: 14px 18px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+[data-testid="stExpander"] summary:hover {
+  background: var(--surface-2);
+}
+
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+  padding: 4px 18px 18px;
+}
+
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* Alerts ---------------------------------------------------------------- */
+
+[data-testid="stAlert"] {
+  border: 0;
+  padding: 0;
+}
+
+[data-testid="stAlertContainer"] {
+  padding: 15px 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+[data-testid="stAlertContainer"] p {
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+/* Charts ---------------------------------------------------------------- */
+
+[data-testid="stVegaLiteChart"] {
+  padding: 6px 2px 0;
+}
+
+[data-testid="stVegaLiteChart"] svg {
+  background: transparent !important;
+}
+
+[data-testid="stVegaLiteChart"] canvas,
+[data-testid="stVegaLiteChart"] svg {
+  max-width: 100%;
+}
+
+/* Code blocks used by the column list. */
+.stCode,
+[data-testid="stCode"] {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+/* Captions inside our widgets. */
+.stCaption p,
+[data-testid="stCaptionContainer"] p {
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* Streamlit's default vertical rhythm inside a panel. */
+.panel [data-testid="stVerticalBlock"] {
+  gap: 0.9rem;
+}
+
+/* Containers keyed in app.py become surface cards. */
+.st-key-manual-panel,
+.st-key-file-panel,
+.st-key-chart-panel,
+.st-key-table-panel {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.st-key-manual-panel [data-testid="stNumberInput"],
+.st-key-file-panel [data-testid="stNumberInput"] {
+  max-width: 200px;
+}
+
+.st-key-manual-panel [data-testid="stVerticalBlock"],
+.st-key-file-panel [data-testid="stVerticalBlock"],
+.st-key-chart-panel [data-testid="stVerticalBlock"],
+.st-key-table-panel [data-testid="stVerticalBlock"] {
+  gap: 1.2rem;
+}
+
+/* Label + widget pairs sit close together. */
+.st-key-dataset-field [data-testid="stVerticalBlock"],
+.st-key-model-pick-field [data-testid="stVerticalBlock"],
+.st-key-model-source-field [data-testid="stVerticalBlock"],
+.st-key-upload-field [data-testid="stVerticalBlock"] {
+  gap: 10px;
+}
+
+.st-key-model-source-field,
+.st-key-model-pick-field,
+.st-key-upload-field {
+  margin-top: 20px;
+}
+
+.pre-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* A little more air around the two setup columns and the form itself. */
+[data-testid="stHorizontalBlock"]:has(.st-key-dataset-field) {
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+[data-testid="stForm"] {
+  border: 0;
+  padding: 0;
+}
+
+[data-testid="stForm"] [data-testid="stVerticalBlock"] {
+  gap: 1.15rem;
+}
+
+.st-key-manual-panel [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+.st-key-file-panel [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {
+  margin-bottom: 2px;
+}
+
+/* ------------------------------ responsive ----------------------------- */
+
+@media (max-width: 1000px) {
+  [data-testid="stMainBlockContainer"] {
+    padding: 14px 32px 88px;
+  }
+
+  .hero {
+    padding-top: 54px;
+  }
+
+  .hero.is-compact {
+    padding-top: 36px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat:nth-child(3) {
+    border-left: 0;
+  }
+
+  .stat:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .result-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] {
+    padding: 12px 20px 72px;
+  }
+
+  .topbar {
+    height: 64px;
+  }
+
+  .tag {
+    display: none;
+  }
+
+  .hero {
+    padding: 44px 0 38px;
+  }
+
+  .hero h1 {
+    font-size: 44px;
+  }
+
+  .hero .lede {
+    margin-top: 18px;
+    font-size: 15.5px;
+  }
+
+  .section-head {
+    margin-top: 54px;
+    padding-top: 24px;
+  }
+
+  .card,
+  .panel,
+  .step {
+    padding: 22px;
+  }
+
+  .st-key-manual-panel,
+  .st-key-file-panel,
+  .st-key-chart-panel,
+  .st-key-table-panel {
+    padding: 22px;
+  }
+
+  .footer {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 72px;
+  }
+
+  .result {
+    padding: 30px 24px;
+  }
+
+  .result-value {
+    font-size: 56px;
+  }
+
+  .result-aside {
+    gap: 28px;
+  }
+}
+
+/* ------------------------ shared details & focus ----------------------- */
+
+/* A single, visible focus ring instead of the browser/Streamlit defaults. */
+:where(a, button, summary, [role="radio"], [role="option"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.rul-block a,
+.rul-block a:visited {
+  color: var(--accent);
+}
+
+/* Native text surfaces introduced by newer Streamlit versions. */
+[data-testid="stTextInputRootElement"] input,
+[data-testid="stNumberInputField"],
+[data-testid="stSelectbox"] input,
+textarea {
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--accent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+
+[data-testid="stExpander"] svg,
+[data-baseweb="select"] svg {
+  color: var(--muted);
+  fill: currentColor;
+}
+
+/* Code chips and blocks read as one quiet surface, not a second theme. */
+[data-testid="stCode"] pre,
+.stCode pre {
+  background: transparent !important;
+}
+
+[data-testid="stCode"] code,
+.stCode code {
+  color: var(--ink-2);
+}
+
+/* The data grid follows Streamlit's own light/dark theme; just soften its
+   frame so it sits inside the page rather than on top of it. */
+[data-testid="stDataFrame"],
+[data-testid="stDataEditor"] {
+  border-color: var(--line);
+}
+
+/* Keep the controls themselves comfortably sized on shorter viewports. */
+@media (max-height: 760px) {
+  .hero {
+    padding-top: 48px;
+  }
+
+  .result {
+    padding-top: 34px;
+  }
+}
+
+
+/* ------------------------- prescriptive maintenance ------------------------ */
+
+.rx-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px 28px;
+  margin: 0;
+}
+
+.rx-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.rx-item small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.rx {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rx-ok     { color: var(--ok);     background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.rx-warn   { color: var(--warn);   background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.rx-danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, transparent); }
+
+.rx-note {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* ----- per-engine table: label pill sits behind the text only ----- */
+
+.rx-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.rx-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.rx-table th,
+.rx-table td {
+  padding: 10px 16px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.rx-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.rx-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rx-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.rx-table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+/* Model picker: six options fit on one line in the setup column ---------- */
+
+.st-key-model-pick-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  gap: 2px;
+  max-width: 100%;
+}
+
+.st-key-model-pick-field [data-testid="stButtonGroup"] button[role="radio"] {
+  padding: 8px 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+
+/* Engine-file uploader tucked under the model card, in the right column ----- */
+
+[data-testid="stColumn"] .st-key-file-panel {
+  padding: 24px;
+  margin-top: 4px;
+}
+
+[data-testid="stColumn"] .st-key-file-panel [data-testid="stVerticalBlock"] {
+  gap: 0.9rem;
+}
+
+
+/* Compact model card: keeps the engine-data box level with the model picker ---- */
+
+.card.is-compact {
+  padding: 14px 18px;
+}
+
+.card.is-compact .card-head {
+  margin-bottom: 10px;
+}
+
+.model-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.model-line b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.model-line > span:last-child {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spec.is-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.spec.is-row > div {
+  min-width: 0;
+  padding: 8px 12px;
+}
+
+.spec.is-row dd {
+  margin-top: 3px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Predict section: tighter vertical rhythm so the entry table is in view ------ */
+
+.st-key-manual-panel {
+  padding: 24px 28px;
+}
+
+.st-key-manual-panel [data-testid="stVerticalBlock"] {
+  gap: 0.75rem;
+}
+
+.st-key-inputs-expander {
+  margin-bottom: -6px;
+}
+
+/* ---------------- uploaded files: remove (X) on hover, round "+" ---------------- */
+
+/* The chip is the anchor for the remove button. */
+[data-testid="stFileChips"] [data-testid="stFileChip"] {
+  position: relative;
+}
+
+/* The X takes the place of the file icon while the pointer is over the chip. */
+[data-testid="stFileChips"] [data-testid="stFileChip"] [data-testid="stFileChipDeleteBtn"] {
+  position: absolute !important;
+  left: 14px;
+  top: 50%;
+  z-index: 2;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChip"]:hover [data-testid="stFileChipDeleteBtn"],
+[data-testid="stFileChips"] [data-testid="stFileChip"]:focus-within [data-testid="stFileChipDeleteBtn"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  cursor: pointer;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Streamlit's own glyph rendered as a plain box here, so the X is drawn with two bars. */
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button {
+  position: relative;
+  font-size: 0;
+  line-height: 0;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button > * {
+  display: none !important;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button::before,
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+[data-testid="stFileChips"] [data-testid="stFileChipDeleteBtn"] button::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Touch screens have no hover, so the X sits at the right edge instead. */
+@media (hover: none) {
+  [data-testid="stFileChips"] [data-testid="stFileChip"] [data-testid="stFileChipDeleteBtn"] {
+    position: static !important;
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    margin-left: auto !important;
+  }
+}
+
+/* The "+" that adds more files: a true circle, never squeezed into an oval. */
+[data-testid="stFileUploaderDropzone"] button[data-testid="stBaseButton-borderlessIcon"],
+[data-testid="stFileChips"] ~ button,
+[data-testid="stFileChips"] > button {
+  flex: 0 0 32px !important;
+  box-sizing: border-box;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  aspect-ratio: 1 / 1;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+
+/* "Operating condition" is a long label: let it wrap to two lines inside the same-width box.
+   Labels sit on top and values on the bottom of every box, and the vertical padding is trimmed so
+   the card stays the same height as before. */
+.card.is-compact {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.card.is-compact .card-head {
+  margin-bottom: 8px;
+}
+
+.spec.is-row > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.spec.is-row dt {
+  min-height: 2.5em;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+
+/* ---- "i" button on the Prescriptive maintenance column: the key lives in a popover ---- */
+
+.rx-shell {
+  position: relative;
+}
+
+.rx-info {
+  position: absolute;
+  top: 9px;
+  right: 22px;
+  z-index: 3;
+}
+
+.rx-info-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 12px/1 Georgia, "Times New Roman", serif;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.rx-info-btn:hover,
+.rx-info-btn:focus-visible {
+  background: var(--surface-3);
+  color: var(--ink);
+  outline: none;
+}
+
+.rx-pop {
+  position: absolute;
+  top: 100%;
+  right: -8px;
+  display: none;
+  width: min(330px, 80vw);
+  padding-top: 8px; /* bridges the gap so the card stays open while the pointer moves down */
+}
+
+.rx-info:hover .rx-pop,
+.rx-info:focus-within .rx-pop {
+  display: block;
+}
+
+.rx-pop-card {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 18px 40px -20px var(--shadow-color);
+  text-align: left;
+}
+
+.rx-pop-card > b {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.rx-pop .rx-legend {
+  flex-direction: column;
+  gap: 12px;
+}
