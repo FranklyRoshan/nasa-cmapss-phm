@@ -11,7 +11,7 @@ default Streamlit chrome and skin are removed.
 
 # TO RUN THIS CODE
 # pip install -r requirements.txt
-# python -m streamlit run app.py
+# python -m streamlit run d:\workspace\aeronautics\app\app.py 
 
 import io
 import json
@@ -569,15 +569,20 @@ def _bundled_sources(dataset: str, model: str):
 
 
 def _setup_columns(dataset_guess: str):
-    """Fleet + model source on the left, file guide / model summary on the right."""
-    left, right = st.columns([1.06, 0.94], gap="large")
+    """Three side-by-side columns: fleet | model source + model | model summary + engine data.
+
+    The first two columns are turned into white cards by styles.css (they are matched by the keyed
+    containers inside them), so the row reads as three cards of the same family.
+    """
+    fleet_col, model_col, right = st.columns([0.85, 1.3, 1.4], gap="medium")
 
     files, sources, signature = [], (), None
     summary, source, bundle_error = "", "Preloaded", ""
 
-    with left:
+    with fleet_col:
         with st.container(key="dataset-field"):
-            ui.field_head(
+            ui.fleet_head(
+                dataset_guess,
                 "Select the fleet",
                 "FD001 to FD004. Every fleet comes with its own set of preloaded models.",
                 anchor="setup",
@@ -589,9 +594,10 @@ def _setup_columns(dataset_guess: str):
                 required=True,
                 key="dataset",
                 label_visibility="collapsed",
-                wrap=True,
             ) or dataset_guess
+            ui.fleet_specs(dataset, EXPECTED_CONDITIONS[dataset])
 
+    with model_col:
         with st.container(key="model-source-field"):
             with st.container(horizontal=True, vertical_alignment="center"):
                 mode = st.segmented_control(
@@ -635,7 +641,7 @@ def _setup_columns(dataset_guess: str):
             with st.container(key="model-pick-field"):
                 ui.field_head(
                     "Choose the model",
-                    f"All six models are preloaded for {dataset}. The notebook's pick is "
+                    f"All six models are preloaded for {dataset}. The best model is "
                     f"{BEST_MODEL[dataset]}.",
                 )
                 # One key per fleet, so each fleet remembers its own choice.
@@ -799,18 +805,15 @@ def _upload_card(inputs: list[str], window: int):
     cols = ["unit", "cycle"] + inputs
 
     with st.container(key="file-panel"):
-        st.html(
-            '<div class="panel-head"><h3>Engine data</h3>'
-            '<p>Upload the official <code class="k">test_FD00X.txt</code> (no header, 26 columns) '
-            'or a CSV with a header row.</p></div>'
+        ui.panel_head_info(
+            "Engine data",
+            'Upload the official <code class="k">test_FD00X.txt</code> (no header, 26 columns) '
+            "or a CSV with a header row.",
+            "Columns the file must contain",
+            ", ".join(cols),
+            "`unit` is the engine id; leave it out if the file holds a single engine. "
+            f"Each engine's last {window} rows are used.".replace("`", ""),
         )
-
-        with st.expander("Columns the file must contain"):
-            st.code(", ".join(cols))
-            st.caption(
-                "`unit` is the engine id; leave it out if the file holds a single engine. "
-                f"Each engine's last {window} rows are used."
-            )
 
         return st.file_uploader("Data file", type=["csv", "txt"], key="engine_file", label_visibility="collapsed")
 
@@ -847,14 +850,6 @@ def _file_results(artifact: dict, dataset: str, window: int, cap: float, file) -
             icon=":material/download:",
             width="stretch",
         )
-        ui.stats(
-            [
-                ("Engines", f"{len(out):,}"),
-                ("Lowest RUL", f"{out['predicted_RUL'].min():.1f}"),
-                ("Median RUL", f"{out['predicted_RUL'].median():.1f}"),
-                ("Highest RUL", f"{out['predicted_RUL'].max():.1f}"),
-            ]
-        )
         ui.predictions_table(out, T_PLAN, T_REPLACE, SAFETY_CYCLES)
 
     with st.container(key="chart-panel"):
@@ -881,7 +876,7 @@ def main():
     ui.apply_theme()
     dataset_guess = st.session_state.get("dataset", "FD001")
     uses_own = st.session_state.get("model_source") == TEST_BENCH
-    ui.header_and_hero(dataset_guess, compact=True)  # same compact title in every mode
+    ui.header_and_hero(dataset_guess, compact=True, show_eyebrow=False)  # the status line lives in the fleet card
 
     dataset, files, artifact, load_error, engine_file = _setup_columns(dataset_guess)
 

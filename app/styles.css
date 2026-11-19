@@ -45,7 +45,7 @@
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono",
     Consolas, monospace;
 
-  --page: 1240px;
+  --page: 1640px;
   --rhythm: 1.75rem;
   color-scheme: light;
 }
@@ -1909,4 +1909,363 @@ textarea::placeholder {
 .rx-pop .rx-legend {
   flex-direction: column;
   gap: 12px;
+}
+
+
+/* ======================= Three-column setup row =============================
+   1 Select the fleet | 2 Model source + Choose the model | 3 Model card + Engine data.
+   The page is wider so the row uses the side space, and columns 1 and 2 are drawn as the same
+   white cards as the engine-data panel in column 3. They are matched through the keyed
+   containers inside them, so no extra wrapper is needed in app.py. ------------------------ */
+
+[data-testid="stHorizontalBlock"]:has(.st-key-dataset-field) {
+  gap: 1.5rem !important;
+  align-items: stretch !important;
+}
+
+[data-testid="stHorizontalBlock"]:has(.st-key-dataset-field) > [data-testid="stColumn"] {
+  min-width: 0;
+}
+
+[data-testid="stColumn"]:has(.st-key-dataset-field),
+[data-testid="stColumn"]:has(.st-key-model-source-field) {
+  padding: 26px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The first thing inside each card sits flush with the card padding. */
+[data-testid="stColumn"] .st-key-model-source-field {
+  margin-top: 0;
+}
+
+/* Column 2 is narrower than the old left column: tighten the model buttons a little so all six
+   usually stay on one line (they wrap onto a second line when the window is smaller). */
+.st-key-model-pick-field [data-testid="stButtonGroup"] button[role="radio"] {
+  padding: 8px 9px;
+}
+
+/* Narrow windows: stack the three blocks instead of squeezing them. */
+@media (max-width: 1100px) {
+  [data-testid="stHorizontalBlock"]:has(.st-key-dataset-field) {
+    flex-wrap: wrap !important;
+  }
+
+  [data-testid="stHorizontalBlock"]:has(.st-key-dataset-field) > [data-testid="stColumn"] {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-testid="stColumn"]:has(.st-key-dataset-field),
+  [data-testid="stColumn"]:has(.st-key-model-source-field) {
+    padding: 20px;
+  }
+}
+
+
+/* ---- Engine data: the column list moved into an "i" popover at the top right ---- */
+
+.panel-head.has-info {
+  position: relative;
+  padding-right: 34px;
+  margin-bottom: 16px;
+}
+
+.panel-head.has-info .rx-info {
+  top: -2px;
+  right: 0;
+}
+
+.rx-pop code.cols {
+  display: block;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.rx-pop-text {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+[data-testid="stColumn"] .st-key-file-panel {
+  padding: 22px 24px;
+}
+
+/* ---- Fleet buttons: FD001-FD004 always on one line, sharing the card width ---- */
+
+.st-key-dataset-field [data-testid="stButtonGroup"],
+.st-key-dataset-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  flex-wrap: nowrap !important;
+  width: 100%;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  display: flex;
+  gap: 2px;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] button[role="radio"] {
+  flex: 1 1 0;
+  justify-content: center;
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+
+
+/* ---- Fleet card: status line inside the card, content fills the full card height ---- */
+
+.hero.no-eyebrow.is-compact h1 {
+  margin-top: 0;
+}
+
+/* The status line is its own block now; the card spaces it from the title and buttons. */
+.fleet-head .eyebrow {
+  margin: 0;
+}
+
+/* Every wrapper between the column and the keyed fleet container grows to the card height, so the
+   header sits at the top and the buttons at the bottom, level with the other two boxes. */
+[data-testid="stColumn"]:has(.st-key-dataset-field) {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-testid="stColumn"]:has(.st-key-dataset-field) :is(
+  [data-testid="stVerticalBlock"],
+  [data-testid="stLayoutWrapper"],
+  [data-testid="stElementContainer"]
+):has(.st-key-dataset-field),
+.st-key-dataset-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.st-key-dataset-field {
+  justify-content: space-between;
+}
+
+/* The button group takes the whole card width (Streamlit sizes it to its content by default). */
+.st-key-dataset-field [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]),
+.st-key-dataset-field [data-testid="stButtonGroup"] {
+  width: 100% !important;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+/* ---- Fleet card: the title and note sit midway between the status line and the buttons ----
+   .st-key-dataset-field is a column with space-between (above). It now holds three blocks
+   (status line, title + note, buttons), so the middle block gets equal space above and below. */
+
+.fleet-copy h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+
+.fleet-copy p {
+  margin: 7px 0 0;
+  max-width: 58ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+
+/* ================== Setup row: same height in Fleet models and Test bench ==================
+   Test bench is the reference height (the upload form sets it, 303px). --setup-h gives the cards
+   in Fleet models that same minimum, so switching the mode no longer makes the row jump. Test bench
+   already measures about this much, so it is not changed. If you ever change the Test bench
+   content, set --setup-h to its new height.
+   Fleet models content is trimmed below so it fits inside that height; whatever is left over is
+   shared out between the blocks instead of piling up under the last one. */
+
+:root {
+  --setup-h: 303px;
+}
+
+@media (min-width: 1101px) {
+  [data-testid="stColumn"]:has(.st-key-dataset-field),
+  [data-testid="stColumn"]:has(.st-key-model-source-field) {
+    min-height: var(--setup-h);
+  }
+}
+
+/* One line for "All six models are preloaded for FD001. The notebook's pick is Transformer." */
+.st-key-model-pick-field .field-head p {
+  max-width: none;
+}
+
+/* Column 2 (Fleet models): the toggle and heading keep their Test bench positions; spare height is
+   shared between the heading, the model buttons and the preprocessor line, so there is no empty
+   band under the last line. */
+[data-testid="stColumn"]:has(.st-key-model-source-field) > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(.st-key-model-pick-field) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.st-key-model-pick-field {
+  flex: 1 1 auto;
+  justify-content: space-between;
+}
+
+.st-key-model-pick-field .field-head {
+  margin-bottom: 0;
+}
+
+/* Column 3 (Fleet models): model card and Engine data share the row height and end level with the
+   other two cards. */
+[data-testid="stColumn"]:has(.st-key-file-panel) > [data-testid="stVerticalBlock"] {
+  gap: 12px;
+}
+
+[data-testid="stColumn"]:has(.st-key-file-panel) > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(.st-key-file-panel) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-testid="stColumn"] .st-key-file-panel {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  margin-top: 0;
+  padding: 16px 22px 18px;
+}
+
+[data-testid="stColumn"] .st-key-file-panel [data-testid="stVerticalBlock"] {
+  gap: 10px;
+}
+
+/* The Engine data description fits on one line when the card is wide enough. */
+.panel-head.has-info p {
+  max-width: none;
+}
+
+.panel-head.has-info {
+  margin-bottom: 0;
+}
+
+.st-key-file-panel [data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] {
+  min-height: 60px;
+}
+
+/* Model card: a little tighter so both right-hand cards fit the shared height. */
+.card.is-compact {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.card.is-compact .card-head {
+  margin-bottom: 6px;
+}
+
+.spec.is-row > div {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+/* Status line in the fleet card keeps its small caps size (it no longer sits inside .field-head). */
+.fleet-head .eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+}
+
+
+/* ================= Segmented controls fill their card; the mode toggle is centred ================
+   Streamlit caps every radiogroup at max-width: fit-content, which is what kept the fleet and model
+   buttons hugging the left edge. Lifting that cap lets them follow the width of the card. */
+
+/* Fleet buttons FD001-FD004: four equal-width segments across the card. */
+.st-key-dataset-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  display: flex;
+  width: 100%;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] button[role="radio"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Model buttons: the six segments fill the card width. Each one grows from its own text width, so
+   "Random Forest" keeps the room it needs while the spare width is shared out evenly. */
+.st-key-model-pick-field [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]),
+.st-key-model-pick-field [data-testid="stButtonGroup"] {
+  width: 100% !important;
+}
+
+.st-key-model-pick-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+.st-key-model-pick-field [data-testid="stButtonGroup"] button[role="radio"] {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+
+
+/* ============ Fleet card: Operating condition + Fault modes under the FD001-FD004 buttons ============
+   The card keeps its size. .st-key-dataset-field is a column with space-between, so its four blocks
+   (status line, title + note, buttons, these two boxes) get equal gaps between them, and the
+   26px card padding above and below matches. */
+
+.st-key-dataset-field [data-testid="stElementContainer"]:has(.spec.is-fleet) {
+  width: 100%;
+}
+
+.spec.is-row.is-fleet {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Two boxes share a narrow card, so the value may wrap ("2 (HPC and Fan)"). Both lines are always
+   reserved, so the card does not change height from one fleet to the next. */
+.spec.is-row.is-fleet dd {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  min-height: 2.5em;
+  line-height: 1.25;
+}
+
+/* The status line, title block and buttons keep their natural height; only the gaps stretch. */
+.st-key-dataset-field > [data-testid="stElementContainer"] {
+  flex: 0 0 auto;
 }

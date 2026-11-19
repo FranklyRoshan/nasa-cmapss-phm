@@ -161,13 +161,19 @@ _BRAND_ICON = """
 """
 
 
-def header_and_hero(dataset: str, compact: bool = False) -> None:
+def header_and_hero(dataset: str, compact: bool = False, show_eyebrow: bool = True) -> None:
     """The large title block."""
     hero_class = "hero is-compact" if compact else "hero"
+    if not show_eyebrow:
+        hero_class += " no-eyebrow"
+    eyebrow = (
+        f'<p class="eyebrow"><span class="dot"></span> Remaining useful life · {_e(dataset)}</p>'
+        if show_eyebrow else ""
+    )
     _html(
         f"""
 <section class="{hero_class}" id="top">
-  <p class="eyebrow"><span class="dot"></span> Remaining useful life · {_e(dataset)}</p>
+  {eyebrow}
   <h1>RUL Predictor</h1>
   <p class="lede">Remaining useful life of a turbofan engine, read from its last cycles of
   sensor history. Pick a fleet and a model — all preloaded — then drop in the engine data.</p>
@@ -183,6 +189,29 @@ def field_head(title: str, note: str = "", meta: str = "", anchor: str = "") -> 
     id_attr = f' id="{_e(anchor)}"' if anchor else ""
     _html(
         f'<div class="field-head"{id_attr}><h3>{_e(title)}</h3>{note_html}{extra}</div>'
+    )
+
+
+def fleet_head(dataset: str, title: str, note: str, anchor: str = "") -> None:
+    """Top of the fleet card, in two separate blocks so the card can lay them out on its own:
+    the status line stays at the top, and the title with its short note is centred in the space
+    between the status line and the fleet buttons (see ``.fleet-head`` / ``.fleet-copy`` in
+    styles.css)."""
+    id_attr = f' id="{_e(anchor)}"' if anchor else ""
+    _html(
+        f"""
+<div class="fleet-head"{id_attr}>
+<p class="eyebrow"><span class="dot"></span> Remaining useful life · {_e(dataset)}</p>
+</div>
+"""
+    )
+    _html(
+        f"""
+<div class="fleet-copy">
+<h3>{_e(title)}</h3>
+<p>{_e(note)}</p>
+</div>
+"""
     )
 
 
@@ -245,11 +274,59 @@ def empty_model_card() -> None:
     )
 
 
+def fleet_specs(dataset: str, n_conditions: int) -> None:
+    """Operating condition + Fault modes: the two boxes that sit under the FD001-FD004 buttons."""
+    conditions = EXPECTED_LABEL.get(int(n_conditions), f"{int(n_conditions)} conditions")
+    _html(
+        f"""
+<dl class="spec is-row is-fleet">
+  <div><dt>Operating condition</dt><dd>{_e(conditions)}</dd></div>
+  <div><dt>Fault modes</dt><dd>{_e(FAULT_MODES.get(dataset, "—"))}</dd></div>
+</dl>
+"""
+    )
+
+
+# Test-set scores per (fleet, model), shown in the model card. Fill these in from the notebook, e.g.
+#   ("FD001", "XGBoost"): {"rmse": 15.2, "nasa": 410},
+# Until a pair is listed (or the loaded model carries a ``metrics`` dict with the same keys), the
+# box shows a dash.
+MODEL_METRICS: dict[tuple[str, str], dict[str, float]] = {}
+
+
+def _load_metrics_file() -> None:
+    """Fill MODEL_METRICS from artifacts/metrics.json, written by compute_metrics.py."""
+    import json
+    for folder in (_HERE / "artifacts", _HERE):
+        path = folder / "metrics.json"
+        if path.is_file():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return
+            for fleet, models in data.items():
+                for model, values in models.items():
+                    MODEL_METRICS.setdefault((fleet, model), values)
+            return
+
+
+_load_metrics_file()
+
+
+def _metric_text(art: dict, dataset: str, name: str, key: str, digits: int) -> str:
+    metrics = art.get("metrics") or MODEL_METRICS.get((dataset, name)) or {}
+    value = metrics.get(key)
+    if value is None:
+        return "—"
+    return f"{float(value):,.{digits}f}"
+
+
 def model_card(art: dict, dataset: str, summary: str, source: str = "Preloaded") -> None:
     """Compact model summary: one title line, one row of specs."""
     pre = art["pre"]
-    conditions = EXPECTED_LABEL[int(pre["n_conditions"])]
     name = art.get("model_name") or "Trained model"
+    rmse = _metric_text(art, dataset, name, "rmse", 2)
+    nasa = _metric_text(art, dataset, name, "nasa", 0)
     if summary.startswith(f"{name} · "):  # the title already says which model it is
         summary = summary[len(name) + 3:]
     body = f"""
@@ -266,8 +343,8 @@ def model_card(art: dict, dataset: str, summary: str, source: str = "Preloaded")
     </span>
   </div>
   <dl class="spec is-row">
-    <div><dt>Operating condition</dt><dd>{_e(conditions)}</dd></div>
-    <div><dt>Fault modes</dt><dd>{_e(FAULT_MODES.get(dataset, "—"))}</dd></div>
+    <div><dt>RMSE</dt><dd>{_e(rmse)}</dd></div>
+    <div><dt>NASA score</dt><dd>{_e(nasa)}</dd></div>
     <div><dt>Window</dt><dd>{int(pre["window_size"])} cycles</dd></div>
     <div><dt>RUL cap</dt><dd>{pre["rul_cap"]:g}</dd></div>
   </dl>
@@ -411,6 +488,30 @@ def _legend_markup(plan: float, replace: float, safety: float) -> str:
   <span class="rx-note">{_e(note)}</span>
 </div>
 """
+
+
+def panel_head_info(title: str, note_html: str, info_title: str, info_code: str, info_note: str = "") -> None:
+    """A panel heading with an "i" button at the top right; the extra detail lives in its popover.
+
+    Uses the same hover/focus popover as the prescriptive-maintenance key (``rx-info``).
+    ``note_html`` is trusted HTML written in app.py; ``info_code`` and ``info_note`` are escaped.
+    """
+    _html(
+        f"""
+<div class="panel-head has-info">
+<h3>{_e(title)}</h3>
+<p>{note_html}</p>
+<span class="rx-info">
+<button type="button" class="rx-info-btn" aria-label="{_e(info_title)}">i</button>
+<span class="rx-pop" role="tooltip"><span class="rx-pop-card">
+<b>{_e(info_title)}</b>
+<code class="cols">{_e(info_code)}</code>
+<span class="rx-pop-text">{_e(info_note)}</span>
+</span></span>
+</span>
+</div>
+"""
+    )
 
 
 def workspace_head(note: str) -> None:
