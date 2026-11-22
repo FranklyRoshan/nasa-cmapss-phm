@@ -274,6 +274,65 @@ def empty_model_card() -> None:
     )
 
 
+def skeleton_cards() -> None:
+    """Placeholder for the model card and the engine-data card while the model files load."""
+    _html(
+        """
+<div class="sk-stack" role="status" aria-busy="true" aria-label="Loading model">
+  <aside class="card is-compact">
+    <div class="card-head">
+      <span class="model-line">
+        <span class="sk sk-dot"></span>
+        <span class="sk sk-line" style="width:130px"></span>
+        <span class="sk sk-line" style="width:90px"></span>
+      </span>
+      <span class="card-tags">
+        <span class="sk sk-chip"></span>
+        <span class="sk sk-chip"></span>
+      </span>
+    </div>
+    <div class="sk-specs">
+      <div><span class="sk sk-line" style="width:48%"></span><span class="sk sk-line is-tall" style="width:68%"></span></div>
+      <div><span class="sk sk-line" style="width:62%"></span><span class="sk sk-line is-tall" style="width:55%"></span></div>
+      <div><span class="sk sk-line" style="width:44%"></span><span class="sk sk-line is-tall" style="width:72%"></span></div>
+    </div>
+  </aside>
+  <aside class="card">
+    <span class="sk sk-line is-tall" style="width:110px"></span>
+    <span class="sk sk-line" style="width:88%;margin-top:14px"></span>
+    <span class="sk sk-drop"></span>
+  </aside>
+</div>
+"""
+    )
+
+
+def predict_skeleton() -> None:
+    """Placeholder for the Predict section (heading, inputs row, cycle table) while a model loads."""
+    cells = "".join('<span class="sk sk-cell"></span>' for _ in range(12 * 5))
+    heads = "".join('<span class="sk sk-cell is-head"></span>' for _ in range(12))
+    _html(
+        f"""
+<div class="sk-stack" role="status" aria-busy="true" aria-label="Loading predictor">
+  <div class="section-head">
+    <span class="sk sk-line is-tall" style="width:90px"></span>
+    <span class="sk sk-line" style="width:170px"></span>
+  </div>
+  <span class="sk sk-line" style="width:150px"></span>
+  <aside class="card">
+    <span class="sk sk-line is-tall" style="width:130px"></span>
+    <span class="sk sk-line" style="width:340px;max-width:90%;margin-top:14px"></span>
+    <div class="sk-inputs">
+      <span class="sk sk-input"></span>
+      <span class="sk sk-input"></span>
+    </div>
+    <div class="sk-grid">{heads}{cells}</div>
+  </aside>
+</div>
+"""
+    )
+
+
 def fleet_specs(dataset: str, n_conditions: int) -> None:
     """Operating condition + Fault modes: the two boxes that sit under the FD001-FD004 buttons."""
     conditions = EXPECTED_LABEL.get(int(n_conditions), f"{int(n_conditions)} conditions")
@@ -288,45 +347,65 @@ def fleet_specs(dataset: str, n_conditions: int) -> None:
 
 
 # Test-set scores per (fleet, model), shown in the model card. Fill these in from the notebook, e.g.
-#   ("FD001", "XGBoost"): {"rmse": 15.2, "nasa": 410},
+#   ("FD001", "XGBoost"): {"tail_rmse": 15.2, "tail_nasa": 410},
 # Until a pair is listed (or the loaded model carries a ``metrics`` dict with the same keys), the
 # box shows a dash.
 MODEL_METRICS: dict[tuple[str, str], dict[str, float]] = {}
 
 
+_METRICS_SEEN: dict = {"path": None, "mtime": None}
+
+
 def _load_metrics_file() -> None:
-    """Fill MODEL_METRICS from artifacts/metrics.json, written by compute_metrics.py."""
+    """Fill MODEL_METRICS from artifacts/metrics.json, written by compute_metrics.py.
+
+    Called on every model card, and re-reads the file whenever it changes, so a fresh
+    metrics.json shows up without restarting Streamlit.
+    """
     import json
     for folder in (_HERE / "artifacts", _HERE):
         path = folder / "metrics.json"
-        if path.is_file():
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                return
-            for fleet, models in data.items():
-                for model, values in models.items():
-                    MODEL_METRICS.setdefault((fleet, model), values)
+        if not path.is_file():
+            continue
+        mtime = path.stat().st_mtime
+        if _METRICS_SEEN["path"] == path and _METRICS_SEEN["mtime"] == mtime:
             return
-
-
-_load_metrics_file()
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        for fleet, models in data.items():
+            for model, values in models.items():
+                MODEL_METRICS[(str(fleet).upper(), str(model).strip().lower())] = values
+        _METRICS_SEEN.update(path=path, mtime=mtime)
+        return
 
 
 def _metric_text(art: dict, dataset: str, name: str, key: str, digits: int) -> str:
-    metrics = art.get("metrics") or MODEL_METRICS.get((dataset, name)) or {}
+    _load_metrics_file()
+    metrics = (art.get("metrics") if isinstance(art.get("metrics"), dict) else None) or {}
+    if key not in metrics:
+        metrics = MODEL_METRICS.get((str(dataset).upper(), str(name).strip().lower())) or {}
     value = metrics.get(key)
     if value is None:
         return "—"
     return f"{float(value):,.{digits}f}"
 
 
-def model_card(art: dict, dataset: str, summary: str, source: str = "Preloaded") -> None:
+def model_card(art: dict, dataset: str, summary: str, source: str = "Preloaded",
+               total_sensors: int = 21) -> None:
     """Compact model summary: one title line, one row of specs."""
     pre = art["pre"]
     name = art.get("model_name") or "Trained model"
-    rmse = _metric_text(art, dataset, name, "rmse", 2)
-    nasa = _metric_text(art, dataset, name, "nasa", 0)
+    # Notebook section 5.3: a sensor is dropped only when it is flat in every operating condition;
+    # the survivors are saved as ``live_sensors`` in the preprocessor. Those are the active sensors.
+    active = len(pre["live_sensors"])
+    specs = [
+        ("Active sensors", f"{active} of {int(total_sensors)}"),
+        ("Window", f"{int(pre['window_size'])} cycles"),
+        ("RUL cap", f"{pre['rul_cap']:g}"),
+    ]
+    cells = "".join(f"<div><dt>{_e(k)}</dt><dd>{_e(v)}</dd></div>" for k, v in specs)
     if summary.startswith(f"{name} · "):  # the title already says which model it is
         summary = summary[len(name) + 3:]
     body = f"""
@@ -342,11 +421,8 @@ def model_card(art: dict, dataset: str, summary: str, source: str = "Preloaded")
       <span class="chip">{_e(dataset)}</span>
     </span>
   </div>
-  <dl class="spec is-row">
-    <div><dt>RMSE</dt><dd>{_e(rmse)}</dd></div>
-    <div><dt>NASA score</dt><dd>{_e(nasa)}</dd></div>
-    <div><dt>Window</dt><dd>{int(pre["window_size"])} cycles</dd></div>
-    <div><dt>RUL cap</dt><dd>{pre["rul_cap"]:g}</dd></div>
+  <dl class="spec is-row" style="--spec-cols: {len(specs)}">
+    {cells}
   </dl>
 </aside>
 """
@@ -362,8 +438,8 @@ FAULT_MODES = {
 }
 
 EXPECTED_LABEL = {
-    1: "1 condition",
-    6: "6 conditions",
+    1: "1 regime",
+    6: "6 regimes",
 }
 
 

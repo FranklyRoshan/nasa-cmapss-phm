@@ -11,9 +11,12 @@ default Streamlit chrome and skin are removed.
 
 # TO RUN THIS CODE
 # pip install -r requirements.txt
+# streamlit run app.py
+# or
 # python -m streamlit run d:\workspace\aeronautics\app\app.py 
 
 import io
+from contextlib import nullcontext
 import json
 import tempfile
 from pathlib import Path
@@ -287,7 +290,7 @@ def _check_preprocessor(pre):
                          "Use the preprocessor_*.joblib or final_preprocessor_*.joblib saved by the notebook.")
 
 
-@st.cache_resource(show_spinner="Loading model files...")
+@st.cache_resource(show_spinner=False)
 def load_artifacts(_sources, key):
     """Sort the files (name, bytes) into model / preprocessor / metadata by what is inside them."""
     _register_torch_runtime()
@@ -510,7 +513,13 @@ def _resolve_artifact(sources, signature):
         return st.session_state["artifact"], None
 
     try:
-        artifact = load_artifacts(sources, signature)
+        if st.session_state.get("artifact") is None:
+            # First launch: the skeleton cards already fill the page, so no spinner on top of them.
+            artifact = load_artifacts(sources, signature)
+        else:
+            # Switching model or fleet: the usual spinner, and the layout stays as it was.
+            with st.spinner("Loading model files..."):
+                artifact = load_artifacts(sources, signature)
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return None, str(exc)
 
@@ -575,6 +584,23 @@ def _setup_columns(dataset_guess: str):
     containers inside them), so the row reads as three cards of the same family.
     """
     fleet_col, model_col, right = st.columns([0.85, 1.3, 1.4], gap="medium")
+
+    # On the first launch only, fill the right column straight away with a skeleton, so it is never
+    # empty while the model files load. The real model card and engine uploader replace it further
+    # down. After that (switching model or fleet) no placeholder is created at all: the previous
+    # content stays on screen, dimmed by Streamlit, until the new one is ready, so the row keeps
+    # its height instead of jumping.
+    first_launch = st.session_state.get("artifact") is None   # nothing loaded yet in this session
+    right_slot = predict_slot = None
+    if first_launch:
+        right_slot = right.empty()
+        with right_slot.container():
+            ui.skeleton_cards()
+
+        # Same idea for the Predict section under the columns row.
+        predict_slot = st.empty()
+        with predict_slot.container():
+            ui.predict_skeleton()
 
     files, sources, signature = [], (), None
     summary, source, bundle_error = "", "Preloaded", ""
@@ -675,9 +701,9 @@ def _setup_columns(dataset_guess: str):
             artifact, load_error = _resolve_artifact(sources, signature)
 
     engine_file = None
-    with right:
+    with (right_slot.container() if right_slot is not None else right):
         if artifact is not None:
-            ui.model_card(artifact, dataset, summary, source=source)
+            ui.model_card(artifact, dataset, summary, source=source, total_sensors=len(SENSOR_COLS))
             if artifact["dataset_id"] == dataset:
                 # The engine-file uploader fills the space under the model card.
                 engine_file = _upload_card(
@@ -686,7 +712,7 @@ def _setup_columns(dataset_guess: str):
         else:
             ui.empty_model_card()
 
-    return dataset, files, artifact, load_error, engine_file
+    return dataset, files, artifact, load_error, engine_file, predict_slot
 
 
 def _formula_chart(frame: pd.DataFrame, cap: float):
@@ -878,58 +904,60 @@ def main():
     uses_own = st.session_state.get("model_source") == TEST_BENCH
     ui.header_and_hero(dataset_guess, compact=True, show_eyebrow=False)  # the status line lives in the fleet card
 
-    dataset, files, artifact, load_error, engine_file = _setup_columns(dataset_guess)
+    dataset, files, artifact, load_error, engine_file, predict_slot = _setup_columns(dataset_guess)
 
-    if load_error:
-        st.error(f"Could not load the files: {load_error}", icon=":material/error:")
-        st.stop()
+    # Entering the slot swaps the skeleton out for the real content.
+    with (predict_slot.container() if predict_slot is not None else nullcontext()):
+        if load_error:
+            st.error(f"Could not load the files: {load_error}", icon=":material/error:")
+            st.stop()
 
-    if artifact is not None and artifact["dataset_id"] != dataset:
-        st.error(
-            f"These files were trained on {artifact['dataset_id']}, but {dataset} is selected. "
-            f"Select {artifact['dataset_id']} above or upload the {dataset} files.",
-            icon=":material/error:",
+        if artifact is not None and artifact["dataset_id"] != dataset:
+            st.error(
+                f"These files were trained on {artifact['dataset_id']}, but {dataset} is selected. "
+                f"Select {artifact['dataset_id']} above or upload the {dataset} files.",
+                icon=":material/error:",
+            )
+            st.stop()
+
+        if artifact is None:
+            note = ("Add your model files above, or switch back to Fleet models."
+                    if uses_own else "Waiting for a model.")
+            ui.section_head("Predict", note, anchor="predict")
+            ui.steps_card()
+            ui.footer()
+            return
+
+        pre = artifact["pre"]
+        window, cap = int(pre["window_size"]), float(pre["rul_cap"])
+        inputs = required_inputs(pre)
+        ignored = [s for s in SENSOR_COLS if s not in pre["live_sensors"]]
+        n_cond = int(pre["n_conditions"])
+
+        ui.workspace_head(
+            f"{artifact['model_name']} · {dataset} · last {window} cycles"
         )
-        st.stop()
 
-    if artifact is None:
-        note = ("Add your model files above, or switch back to Fleet models."
-                if uses_own else "Waiting for a model.")
-        ui.section_head("Predict", note, anchor="predict")
-        ui.steps_card()
+        # Once an engine file is in the Engine data box (beside the model card) its results replace the
+        # manual entry form, so nothing sits between the page top and the results. Remove the file
+        # (hover it and press X) to bring manual entry back.
+        if engine_file is not None:
+            _file_results(artifact, dataset, window, cap, engine_file)
+        else:
+            with st.expander("Inputs this model reads", key="inputs-expander"):
+                st.caption(
+                    ("Operating settings: " + ", ".join(SETTING_COLS) + ". " if n_cond > 1 else "")
+                    + "Sensors: " + ", ".join(pre["live_sensors"])
+                    + (f". Not used (flat in the training data): {', '.join(ignored)}." if ignored else ".")
+                )
+                st.caption(
+                    f"{len(inputs)} values per cycle, over the last {window} cycles of an engine. "
+                    f"Training capped RUL at {cap:g}."
+                )
+
+            _manual_panel(artifact, inputs, window, cap)
+
         ui.footer()
-        return
-
-    pre = artifact["pre"]
-    window, cap = int(pre["window_size"]), float(pre["rul_cap"])
-    inputs = required_inputs(pre)
-    ignored = [s for s in SENSOR_COLS if s not in pre["live_sensors"]]
-    n_cond = int(pre["n_conditions"])
-
-    ui.workspace_head(
-        f"{artifact['model_name']} · {dataset} · last {window} cycles"
-    )
-
-    # Once an engine file is in the Engine data box (beside the model card) its results replace the
-    # manual entry form, so nothing sits between the page top and the results. Remove the file
-    # (hover it and press X) to bring manual entry back.
-    if engine_file is not None:
-        _file_results(artifact, dataset, window, cap, engine_file)
-    else:
-        with st.expander("Inputs this model reads", key="inputs-expander"):
-            st.caption(
-                ("Operating settings: " + ", ".join(SETTING_COLS) + ". " if n_cond > 1 else "")
-                + "Sensors: " + ", ".join(pre["live_sensors"])
-                + (f". Not used (flat in the training data): {', '.join(ignored)}." if ignored else ".")
-            )
-            st.caption(
-                f"{len(inputs)} values per cycle, over the last {window} cycles of an engine. "
-                f"Training capped RUL at {cap:g}."
-            )
-
-        _manual_panel(artifact, inputs, window, cap)
-
-    ui.footer()
 
 
 if __name__ == "__main__":

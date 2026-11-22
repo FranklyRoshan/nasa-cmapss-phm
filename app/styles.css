@@ -1669,7 +1669,8 @@ textarea::placeholder {
 }
 
 .spec.is-row {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* --spec-cols is set inline by the component, so the boxes always share the full width */
+  grid-template-columns: repeat(var(--spec-cols, 4), minmax(0, 1fr));
   margin: 0;
 }
 
@@ -2267,5 +2268,190 @@ textarea::placeholder {
 
 /* The status line, title block and buttons keep their natural height; only the gaps stretch. */
 .st-key-dataset-field > [data-testid="stElementContainer"] {
+  flex: 0 0 auto;
+}
+
+
+/* ============ Model buttons on narrow cards: two rows of three ============
+   The card measures its own width (not the screen's), so the buttons only wrap when XGBoost ...
+   Transformer would no longer fit on one readable line. The wrapped version uses smaller buttons
+   (less padding, tighter gaps) so two rows take little more room than one, and the card keeps its
+   height. Every button stays as wide as a third of the card, so none is squeezed into "XGB...". */
+
+.st-key-model-pick-field {
+  container-type: inline-size;
+}
+
+@container (max-width: 460px) {
+  .st-key-model-pick-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 20px;
+  }
+
+  .st-key-model-pick-field [data-testid="stButtonGroup"] button[role="radio"] {
+    flex: 1 1 calc((100% - 6px) / 3);
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 12px;
+    line-height: 1.25;
+    border-radius: 16px;
+  }
+
+  /* Show the whole name; never cut it off with "...". */
+  .st-key-model-pick-field [data-testid="stButtonGroup"] button[role="radio"] p {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+}
+
+
+/* ============ Fleet buttons shrink with the card so FD001-FD004 always stay on one line ============
+   The card measures its own width. The text size follows it (12.5px when there is room, down to
+   9px on a small screen) and the side padding is cut to a hair, so each button has just enough
+   room to show the full name instead of "FD...". The row never wraps and the card keeps its height. */
+
+.st-key-dataset-field {
+  container-type: inline-size;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] div[role="radiogroup"] {
+  padding: 4px;
+  gap: 1px;
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] button[role="radio"] {
+  padding: 8px 2px;
+  font-size: clamp(9px, calc((100cqw - 26px) / 12.8), 12.5px);
+}
+
+.st-key-dataset-field [data-testid="stButtonGroup"] button[role="radio"] p {
+  font-size: inherit;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+
+/* Skeleton placeholder shown in the right-hand column while the model files load */
+.sk-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sk {
+  --sk-base: color-mix(in srgb, var(--ink) 9%, transparent);
+  --sk-glint: color-mix(in srgb, var(--ink) 18%, transparent);
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--sk-base) 25%, var(--sk-glint) 50%, var(--sk-base) 75%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+}
+
+.sk-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.sk-chip { width: 58px; height: 22px; border-radius: 999px; }
+.sk-line { height: 11px; }
+.sk-line.is-tall { height: 16px; margin-top: 10px; }
+.sk-drop { height: 62px; margin-top: 18px; border-radius: 12px; }
+
+.sk-specs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-radius: 12px;
+}
+
+.sk-specs > div {
+  padding: 12px 14px;
+  min-height: 58px;
+}
+
+.sk-specs > div + div {
+  border-left: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+@keyframes sk-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
+}
+
+/* Skeleton for the Predict section */
+.sk-inputs {
+  display: flex;
+  gap: 24px;
+  margin: 22px 0 18px;
+}
+
+.sk-input { width: 200px; max-width: 40%; height: 44px; border-radius: 10px; }
+
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-radius: 12px;
+}
+
+.sk-cell { height: 14px; }
+.sk-cell.is-head { height: 16px; margin-bottom: 6px; }
+
+
+/* Engine-data card fills the rest of the right column ----------------------
+   The model card keeps its natural height. The Engine data card takes whatever
+   is left so its bottom edge lines up with the fleet and model cards, and the
+   dashed drop zone stretches to use that space. */
+
+[data-testid="stHorizontalBlock"]:has(.st-key-file-panel) {
+  align-items: stretch;
+}
+
+/* every wrapper between the column and the card becomes a flexible column */
+[data-testid="stColumn"]:has(.st-key-file-panel),
+[data-testid="stColumn"]:has(.st-key-file-panel)
+  :is([data-testid="stVerticalBlock"], [data-testid="stLayoutWrapper"], [data-testid="stElementContainer"]):has(.st-key-file-panel) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-testid="stColumn"] .st-key-file-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-testid="stColumn"] .st-key-file-panel > [data-testid="stVerticalBlock"] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* the uploader (and its drop zone) takes the space under the heading text */
+.st-key-file-panel [data-testid="stElementContainer"]:has([data-testid="stFileUploader"]),
+.st-key-file-panel [data-testid="stFileUploader"],
+.st-key-file-panel [data-testid="stFileUploader"] > div:has([data-testid="stFileUploaderDropzone"]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.st-key-file-panel [data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] {
+  flex: 1 1 auto;
+}
+
+/* once a file is chosen the drop zone shrinks back to just the file chip */
+.st-key-file-panel [data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) {
   flex: 0 0 auto;
 }
