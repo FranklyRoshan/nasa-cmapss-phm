@@ -94,18 +94,14 @@ The notebook reports:
 - **Late predictions (%):** percentage of predictions for which predicted RUL exceeds the true RUL.
 
 For the NASA score, the prediction error is defined as:
-
-\[
+$$
 d = \widehat{\mathrm{RUL}} - \mathrm{RUL}
-\]
+$$
 
-\[
-s(d) =
-\begin{cases}
-e^{-d/13} - 1, & d < 0 \\
-e^{d/10} - 1, & d \geq 0
-\end{cases}
-\]
+$$
+s(d) = \begin{cases} e^{-d/13} - 1, & d < 0 \\ e^{d/10} - 1, & d \geq 0 \end{cases}
+$$
+
 
 The total NASA score is the sum of the individual penalties. A lower score is better.
 
